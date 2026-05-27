@@ -56,54 +56,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Smoke test endpoints
+      - name: Run unit tests
         run: |
           set -euo pipefail
-          # Run the built image against the Postgres service (host network so
-          # the container reaches localhost:5432 and exposes gunicorn on :8000).
-          docker run -d --name web --network host \
-            -e SECRET_KEY=ci-smoke-test-key \
+          # Run the test suite inside the built image against the Postgres
+          # service (host network so the container reaches localhost:5432).
+          # Django creates and tears down its own test database.
+          docker run --rm --network host \
+            -e SECRET_KEY=ci-test-key \
             -e DEBUG=False \
-            -e ALLOWED_HOSTS=localhost,127.0.0.1 \
-            -e CSRF_TRUSTED_ORIGINS=http://localhost \
             -e POSTGRES_DB=school \
             -e POSTGRES_USER=school \
             -e POSTGRES_PASSWORD=ci-password \
             -e POSTGRES_HOST=localhost \
             -e POSTGRES_PORT=5432 \
-            "${IMAGE}:${GITHUB_SHA}"
-
-          # Wait for the app to become healthy.
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8000/health/ >/dev/null 2>&1; then
-              break
-            fi
-            if [ "$i" = 30 ]; then
-              echo "App did not become healthy in time"; docker logs web; exit 1
-            fi
-            sleep 2
-          done
-
-          echo "== health =="
-          curl -fsS http://localhost:8000/health/; echo
-
-          echo "== create (POST) =="
-          curl -fsS -X POST http://localhost:8000/api/students/ \
-            -H 'Content-Type: application/json' \
-            -d '{"first_name":"Ada","last_name":"Lovelace","email":"ada@school.edu","enrollment_number":"ENR001"}'; echo
-
-          echo "== list (GET) =="
-          curl -fsS http://localhost:8000/api/students/; echo
-
-          echo "== retrieve (GET /1/) =="
-          curl -fsS http://localhost:8000/api/students/1/; echo
-
-          echo "== delete (DELETE /1/) =="
-          code=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE http://localhost:8000/api/students/1/)
-          echo "delete status: $code"
-          [ "$code" = "204" ] || { echo "unexpected delete status"; docker logs web; exit 1; }
-
-          docker rm -f web
+            "${IMAGE}:${GITHUB_SHA}" \
+            python manage.py test --verbosity 2
 
       - name: Trivy vulnerability scan
         uses: aquasecurity/trivy-action@v0.36.0
