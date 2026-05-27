@@ -11,3 +11,6 @@ wheels/
 
 # Environment variables
 .env
+
+# Collected static files (generated at build time)
+staticfiles/

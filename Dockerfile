@@ -25,6 +25,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Collect static files into STATIC_ROOT for WhiteNoise to serve.
+# SECRET_KEY is a throwaway value used only for this build step (no DB access).
+RUN SECRET_KEY=build-time-only python manage.py collectstatic --noinput
+
 # Run as a non-root user
 RUN adduser -D -u 1000 appuser \
     && chown -R appuser:appuser /app
@@ -32,4 +36,5 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+# Apply migrations on startup, then serve via gunicorn (production WSGI server).
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
