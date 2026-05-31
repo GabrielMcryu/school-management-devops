@@ -44,12 +44,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'corsheaders',
     'students',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -147,4 +149,11 @@ CSRF_TRUSTED_ORIGINS = [
     o.strip()
     for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
     if o.strip()
+]
+
+# Allow the Flutter web dev client (served on any localhost/127.0.0.1 port by
+# `flutter run -d chrome`) to call the API in the browser.
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^http://localhost:\d+$',
+    r'^http://127\.0\.0\.1:\d+$',
 ]

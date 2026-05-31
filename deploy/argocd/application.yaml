@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: school-management
+  namespace: argocd
+  # Keep the Application around until its child resources are cleaned up on delete.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # Public repo — no credentials Secret required. Argo CD pulls over HTTPS.
+    repoURL: https://github.com/GabrielMcryu/school-management-devops.git
+    # Local-test branch. Switch to `main` (and path deploy/overlays/aks) for prod.
+    targetRevision: develop-gabriel
+    # Kustomize base — runs unchanged on minikube. The AKS overlay adds managed-csi.
+    path: deploy/base
+
+  destination:
+    # In-cluster (the same cluster Argo CD runs in).
+    server: https://kubernetes.default.svc
+    namespace: school
+
+  syncPolicy:
+    automated:
+      prune: true      # delete resources removed from Git
+      selfHeal: true   # revert manual drift back to Git state
+    syncOptions:
+      - CreateNamespace=true   # create the `school` namespace if absent
