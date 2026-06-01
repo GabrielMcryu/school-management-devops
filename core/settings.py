@@ -157,3 +157,12 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^http://localhost:\d+$',
     r'^http://127\.0\.0\.1:\d+$',
 ]
+
+# Additional exact origins (e.g. the deployed frontend) via env, comma-separated
+# and scheme-qualified, e.g. "https://myapp.example.com". Config-driven so new
+# frontends don't require a code change/rebuild.
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',')
+    if o.strip()
+]
