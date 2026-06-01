@@ -1,0 +1,88 @@
+# Argo CD Application — installs the kube-prometheus-stack Helm chart
+# (Prometheus + Grafana + Alertmanager + node-exporter + kube-state-metrics).
+# Declarative GitOps: Argo CD renders the chart with the inline values below,
+# so the whole monitoring stack lives in Git like everything else.
+#
+# Apply with:  kubectl apply -f deploy/argocd/monitoring.yaml
+# Grafana UI:  kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
+#   user: admin   password set via grafana.adminPassword below.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # A Helm chart hosted in a chart repo (not a path in your Git repo).
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 86.1.0        # chart version (appVersion v0.91.0)
+    helm:
+      releaseName: monitoring
+      # Values trimmed for a single Standard_D2as_v5 (2 vCPU / 8 GB) already
+      # running Argo CD + Django + Postgres. Drop these trims if you scale up.
+      valuesObject:
+        # --- Alertmanager: not needed for a demo, save ~1 pod + memory ---
+        alertmanager:
+          enabled: false
+
+        # --- Grafana: keep it, but ephemeral (no PVC) and modest limits ---
+        grafana:
+          adminPassword: "admin"        # demo only — change for anything real
+          persistence:
+            enabled: false
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits:   { cpu: 250m, memory: 256Mi }
+          # Expose via the same nginx Ingress as the app, at /grafana
+          # (uncomment + set host if you want browser access without port-forward)
+          # ingress:
+          #   enabled: true
+          #   ingressClassName: nginx
+          #   path: /grafana
+          #   hosts: [""]
+
+        # --- Prometheus: short retention, no PVC, capped resources ---
+        prometheus:
+          prometheusSpec:
+            retention: 6h
+            # ephemeral storage (emptyDir). Add a volumeClaimTemplate w/
+            # managed-csi if you want metrics to survive a pod restart.
+            resources:
+              requests: { cpu: 100m, memory: 400Mi }
+              limits:   { cpu: 500m, memory: 800Mi }
+            # Scrape ServiceMonitors/PodMonitors in ALL namespaces, not just
+            # those with the release's Helm label — so it can find the app later.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+
+        # --- Lightweight exporters: keep (cheap, high value) ---
+        nodeExporter:
+          enabled: true
+        kube-state-metrics:
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits:   { cpu: 100m, memory: 128Mi }
+
+        # On a single-node demo cluster, skip control-plane scrape targets that
+        # AKS doesn't expose (etcd, scheduler, controller-manager) to avoid noisy
+        # "target down" alerts.
+        kubeEtcd: { enabled: false }
+        kubeScheduler: { enabled: false }
+        kubeControllerManager: { enabled: false }
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true   # the Prometheus Operator CRDs are large
