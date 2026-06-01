@@ -12,4 +12,4 @@ patches:
 
 images:
   - name: ghcr.io/gabrielmcryu/school-management-devops
-    newTag: latest
+    newTag: "2500f787ca9baf3614b1b0f7a46deb36f84c01db"
