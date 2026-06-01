@@ -23,12 +23,22 @@ spec:
     targetRevision: 86.1.0        # chart version (appVersion v0.91.0)
     helm:
       releaseName: monitoring
-      # Values trimmed for a single Standard_D2as_v5 (2 vCPU / 8 GB) already
+      # Values trimmed for a single Standard_D2s_v3 (2 vCPU / 8 GB) already
       # running Argo CD + Django + Postgres. Drop these trims if you scale up.
       valuesObject:
-        # --- Alertmanager: not needed for a demo, save ~1 pod + memory ---
+        # --- Alertmanager: ENABLED for alerting (high memory, pod restarts,
+        #     etc. — fired by the chart's default Prometheus rules). Kept
+        #     ephemeral (emptyDir) + small footprint for the single-node demo.
+        #     NOTE: the default receiver is a no-op (alerts are visible in the
+        #     Alertmanager/Grafana UI but not routed anywhere). Add a real
+        #     receiver under alertmanager.config to send to Slack/email. ---
         alertmanager:
-          enabled: false
+          enabled: true
+          alertmanagerSpec:
+            retention: 6h
+            resources:
+              requests: { cpu: 25m, memory: 64Mi }
+              limits:   { cpu: 100m, memory: 128Mi }
 
         # --- Grafana: keep it, but ephemeral (no PVC) and modest limits ---
         grafana:
@@ -36,8 +46,10 @@ spec:
           persistence:
             enabled: false
           resources:
-            requests: { cpu: 50m, memory: 128Mi }
-            limits:   { cpu: 250m, memory: 256Mi }
+            requests: { cpu: 50m, memory: 192Mi }
+            # 256Mi OOMKilled Grafana when loading dashboards (idle ~164Mi +
+            # two sidecars). 512Mi gives headroom; the node has it to spare.
+            limits:   { cpu: 250m, memory: 512Mi }
           # Expose via the same nginx Ingress as the app, at /grafana
           # (uncomment + set host if you want browser access without port-forward)
           # ingress:
