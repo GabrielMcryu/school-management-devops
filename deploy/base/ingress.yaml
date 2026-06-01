@@ -3,10 +3,21 @@ kind: Ingress
 metadata:
   name: web
   namespace: school
+  annotations:
+    # cert-manager watches this annotation and issues a Let's Encrypt cert
+    # into the secret named under tls.secretName below.
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - 48.194.115.160.nip.io
+      secretName: web-tls
   rules:
-    - http:
+    # nip.io resolves <ip>.nip.io straight to the IP, giving us a real hostname
+    # for the LoadBalancer IP so Let's Encrypt can issue a trusted cert.
+    - host: 48.194.115.160.nip.io
+      http:
         paths:
           - path: /
             pathType: Prefix
