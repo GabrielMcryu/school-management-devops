@@ -135,6 +135,12 @@ Triggered on **push to `main`** ([.github/workflows/ci.yml](.github/workflows/ci
 Image-size note: the Alpine base + psycopg3 keeps the app image at **0
 HIGH/CRITICAL** findings.
 
+![GitHub Actions runs](screenshots/workflow-list-screenshot.png)
+*GitHub Actions — build/scan/publish runs.*
+
+![build-scan-push job](screenshots/workflow-screenshot.png)
+*The `build-scan-push` job: build → unit tests → Trivy scan → push to GHCR, all green.*
+
 ---
 
 ## Kubernetes deployment
@@ -191,6 +197,12 @@ kubectl apply -n argocd --server-side --force-conflicts \
   -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.3/manifests/install.yaml
 ```
 
+![school-demo-rg resources](screenshots/school-demo-rg-screenshot.png)
+*The `school-demo-rg` resource group — the AKS cluster + frontend storage account.*
+
+![AKS node VMSS](screenshots/vm-settings.png)
+*The AKS node: `Standard_D2s_v3` (2 vCPU / 8 GB), Linux, with the LoadBalancer public IP.*
+
 ---
 
 ## GitOps with Argo CD
@@ -214,6 +226,9 @@ kubectl -n argocd get secret argocd-initial-admin-secret \
 auto-redeploy. Bump `deploy/overlays/aks/kustomization.yaml` `newTag` to the new
 commit SHA (CI publishes a SHA-tagged image) and push — Argo CD then rolls the
 new image out.
+
+![Argo CD application](screenshots/argocd-screenshot.png)
+*Argo CD: the `school-management` app **Synced + Healthy**, showing the full resource tree (Deployment, StatefulSet, Services, Ingress).*
 
 ---
 
@@ -252,6 +267,15 @@ Bundles Prometheus, Grafana (preloaded cluster dashboards), Alertmanager,
 node-exporter, and kube-state-metrics. Values are trimmed for a single small
 node (short retention, ephemeral storage, capped resources).
 
+![Grafana Node Exporter](screenshots/grafana-node-exporter-nodes-screenshot.png)
+*Grafana — Node Exporter / Nodes: node CPU, memory, disk, and network.*
+
+![Grafana cluster compute](screenshots/grafana-compute-resources-cluster-screenshot1.png)
+*Grafana — Compute Resources / Cluster: CPU & memory across all namespaces.*
+
+![Grafana node pods](screenshots/grafana-compute-resources-node-pods-screenshot.png)
+*Grafana — Compute Resources / Node (Pods): per-pod usage on the node.*
+
 ---
 
 ## Frontend (Flutter web)
@@ -272,6 +296,18 @@ must include the frontend's origin.
 
 > Serve the frontend over **HTTPS** to match the HTTPS backend — an HTTPS page
 > calling an HTTP API is blocked by browsers as *mixed content*.
+
+![Frontend storage account](screenshots/front-end-resource-screenshot.png)
+*The frontend storage account hosting the static website (`$web` container).*
+
+![Students list](screenshots/frontend-list-students-screenshot.png)
+*The Flutter web app — students list, served from the storage static website and reading the API over HTTPS.*
+
+![Create student](screenshots/frontend-create-student-screenshot.png)
+*Creating a student from the frontend (POST `/api/students/`).*
+
+![Students list after create](screenshots/frontend-list-students-after-create-screenshot.png)
+*The list reflecting newly created students — full CRUD working end-to-end over HTTPS.*
 
 ---
 
