@@ -1,11 +1,5 @@
 # Argo CD Application — installs the kube-prometheus-stack Helm chart
 # (Prometheus + Grafana + Alertmanager + node-exporter + kube-state-metrics).
-# Declarative GitOps: Argo CD renders the chart with the inline values below,
-# so the whole monitoring stack lives in Git like everything else.
-#
-# Apply with:  kubectl apply -f deploy/argocd/monitoring.yaml
-# Grafana UI:  kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
-#   user: admin   password set via grafana.adminPassword below.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -27,11 +21,7 @@ spec:
       # running Argo CD + Django + Postgres. Drop these trims if you scale up.
       valuesObject:
         # --- Alertmanager: ENABLED for alerting (high memory, pod restarts,
-        #     etc. — fired by the chart's default Prometheus rules). Kept
-        #     ephemeral (emptyDir) + small footprint for the single-node demo.
-        #     NOTE: the default receiver is a no-op (alerts are visible in the
-        #     Alertmanager/Grafana UI but not routed anywhere). Add a real
-        #     receiver under alertmanager.config to send to Slack/email. ---
+        #     etc.
         alertmanager:
           enabled: true
           alertmanagerSpec:
@@ -40,35 +30,22 @@ spec:
               requests: { cpu: 25m, memory: 64Mi }
               limits:   { cpu: 100m, memory: 128Mi }
 
-        # --- Grafana: keep it, but ephemeral (no PVC) and modest limits ---
         grafana:
           adminPassword: "admin"        # demo only — change for anything real
           persistence:
             enabled: false
           resources:
             requests: { cpu: 50m, memory: 192Mi }
-            # 256Mi OOMKilled Grafana when loading dashboards (idle ~164Mi +
-            # two sidecars). 512Mi gives headroom; the node has it to spare.
             limits:   { cpu: 250m, memory: 512Mi }
           # Expose via the same nginx Ingress as the app, at /grafana
-          # (uncomment + set host if you want browser access without port-forward)
-          # ingress:
-          #   enabled: true
-          #   ingressClassName: nginx
-          #   path: /grafana
-          #   hosts: [""]
 
         # --- Prometheus: short retention, no PVC, capped resources ---
         prometheus:
           prometheusSpec:
             retention: 6h
-            # ephemeral storage (emptyDir). Add a volumeClaimTemplate w/
-            # managed-csi if you want metrics to survive a pod restart.
             resources:
               requests: { cpu: 100m, memory: 400Mi }
-              limits:   { cpu: 500m, memory: 800Mi }
-            # Scrape ServiceMonitors/PodMonitors in ALL namespaces, not just
-            # those with the release's Helm label — so it can find the app later.
+              limits:   { cpu: 500m, memory: 800Mi }.
             serviceMonitorSelectorNilUsesHelmValues: false
             podMonitorSelectorNilUsesHelmValues: false
 
@@ -80,9 +57,6 @@ spec:
             requests: { cpu: 20m, memory: 64Mi }
             limits:   { cpu: 100m, memory: 128Mi }
 
-        # On a single-node demo cluster, skip control-plane scrape targets that
-        # AKS doesn't expose (etcd, scheduler, controller-manager) to avoid noisy
-        # "target down" alerts.
         kubeEtcd: { enabled: false }
         kubeScheduler: { enabled: false }
         kubeControllerManager: { enabled: false }
